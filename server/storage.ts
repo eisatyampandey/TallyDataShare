@@ -1,11 +1,24 @@
-import { type User, type InsertUser, type DataFile, type InsertDataFile, type DataTable, type InsertDataTable, type Report, type InsertReport } from "@shared/schema";
-import { randomUUID } from "crypto";
+import {
+  users,
+  dataFiles,
+  dataTables,
+  reports,
+  type User,
+  type UpsertUser,
+  type DataFile,
+  type InsertDataFile,
+  type DataTable,
+  type InsertDataTable,
+  type Report,
+  type InsertReport,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
 
   // Data file methods
   getDataFile(id: string): Promise<DataFile | undefined>;
@@ -36,66 +49,42 @@ export interface IStorage {
   }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-  private dataFiles: Map<string, DataFile>;
-  private dataTables: Map<string, DataTable>;
-  private reports: Map<string, Report>;
-
-  constructor() {
-    this.users = new Map();
-    this.dataFiles = new Map();
-    this.dataTables = new Map();
-    this.reports = new Map();
-
-    // Create a default user for demo purposes
-    const defaultUser: User = {
-      id: "default-user",
-      username: "demo",
-      password: "demo123",
-      email: "demo@tallysync.com",
-      fullName: "Demo User",
-      createdAt: new Date(),
-    };
-    this.users.set(defaultUser.id, defaultUser);
-  }
-
+export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id, createdAt: new Date() };
-    this.users.set(id, user);
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
     return user;
   }
 
   async getDataFile(id: string): Promise<DataFile | undefined> {
-    return this.dataFiles.get(id);
+    const [file] = await db.select().from(dataFiles).where(eq(dataFiles.id, id));
+    return file || undefined;
   }
 
   async getDataFilesByUser(userId: string): Promise<DataFile[]> {
-    return Array.from(this.dataFiles.values()).filter(file => file.userId === userId);
+    const files = await db.select().from(dataFiles).where(eq(dataFiles.userId, userId));
+    return files;
   }
 
   async createDataFile(insertDataFile: InsertDataFile): Promise<DataFile> {
-    const id = randomUUID();
-    const dataFile: DataFile = {
-      ...insertDataFile,
-      id,
-      uploadedAt: new Date(),
-      processedAt: null,
-      status: "pending",
-      processingTime: null,
-      recordCount: 0,
-      errorMessage: null,
-    };
-    this.dataFiles.set(id, dataFile);
+    const [dataFile] = await db
+      .insert(dataFiles)
+      .values(insertDataFile)
+      .returning();
     return dataFile;
   }
 
@@ -106,80 +95,82 @@ export class MemStorage implements IStorage {
     recordCount?: number,
     errorMessage?: string
   ): Promise<DataFile | undefined> {
-    const dataFile = this.dataFiles.get(id);
-    if (!dataFile) return undefined;
-
-    const updatedFile: DataFile = {
-      ...dataFile,
-      status,
-      processedAt: status === "completed" || status === "error" ? new Date() : dataFile.processedAt,
-      processingTime: processingTime ?? dataFile.processingTime,
-      recordCount: recordCount ?? dataFile.recordCount,
-      errorMessage: errorMessage ?? dataFile.errorMessage,
-    };
-
-    this.dataFiles.set(id, updatedFile);
-    return updatedFile;
+    const [updatedFile] = await db
+      .update(dataFiles)
+      .set({
+        status,
+        processedAt: status === "completed" || status === "error" ? new Date() : undefined,
+        processingTime: processingTime ? processingTime.toString() : undefined,
+        recordCount: recordCount ?? undefined,
+        errorMessage: errorMessage ?? undefined,
+      })
+      .where(eq(dataFiles.id, id))
+      .returning();
+    return updatedFile || undefined;
   }
 
   async getDataTable(id: string): Promise<DataTable | undefined> {
-    return this.dataTables.get(id);
+    const [table] = await db.select().from(dataTables).where(eq(dataTables.id, id));
+    return table || undefined;
   }
 
   async getDataTablesByFile(fileId: string): Promise<DataTable[]> {
-    return Array.from(this.dataTables.values()).filter(table => table.fileId === fileId);
+    const tables = await db.select().from(dataTables).where(eq(dataTables.fileId, fileId));
+    return tables;
   }
 
   async getDataTablesByUser(userId: string): Promise<DataTable[]> {
-    const userFiles = await this.getDataFilesByUser(userId);
-    const fileIds = userFiles.map(file => file.id);
-    return Array.from(this.dataTables.values()).filter(table => fileIds.includes(table.fileId));
+    const result = await db
+      .select({
+        id: dataTables.id,
+        fileId: dataTables.fileId,
+        name: dataTables.name,
+        description: dataTables.description,
+        headers: dataTables.headers,
+        data: dataTables.data,
+        recordCount: dataTables.recordCount,
+        createdAt: dataTables.createdAt,
+        updatedAt: dataTables.updatedAt,
+        isActive: dataTables.isActive,
+      })
+      .from(dataTables)
+      .innerJoin(dataFiles, eq(dataTables.fileId, dataFiles.id))
+      .where(eq(dataFiles.userId, userId));
+    return result;
   }
 
   async createDataTable(insertDataTable: InsertDataTable): Promise<DataTable> {
-    const id = randomUUID();
-    const dataTable: DataTable = {
-      ...insertDataTable,
-      id,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isActive: true,
-    };
-    this.dataTables.set(id, dataTable);
+    const [dataTable] = await db
+      .insert(dataTables)
+      .values(insertDataTable)
+      .returning();
     return dataTable;
   }
 
   async updateDataTable(id: string, updates: Partial<DataTable>): Promise<DataTable | undefined> {
-    const dataTable = this.dataTables.get(id);
-    if (!dataTable) return undefined;
-
-    const updatedTable: DataTable = {
-      ...dataTable,
-      ...updates,
-      updatedAt: new Date(),
-    };
-
-    this.dataTables.set(id, updatedTable);
-    return updatedTable;
+    const [updatedTable] = await db
+      .update(dataTables)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(dataTables.id, id))
+      .returning();
+    return updatedTable || undefined;
   }
 
   async getReport(id: string): Promise<Report | undefined> {
-    return this.reports.get(id);
+    const [report] = await db.select().from(reports).where(eq(reports.id, id));
+    return report || undefined;
   }
 
   async getReportsByUser(userId: string): Promise<Report[]> {
-    return Array.from(this.reports.values()).filter(report => report.userId === userId);
+    const reportsList = await db.select().from(reports).where(eq(reports.userId, userId));
+    return reportsList;
   }
 
   async createReport(insertReport: InsertReport): Promise<Report> {
-    const id = randomUUID();
-    const report: Report = {
-      ...insertReport,
-      id,
-      generatedAt: new Date(),
-      filePath: null,
-    };
-    this.reports.set(id, report);
+    const [report] = await db
+      .insert(reports)
+      .values(insertReport)
+      .returning();
     return report;
   }
 
@@ -219,4 +210,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import { insertDataFileSchema, insertDataTableSchema, insertReportSchema } from "@shared/schema";
@@ -26,12 +27,26 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  const DEFAULT_USER_ID = "default-user";
+  // Auth middleware
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
 
   // Get dashboard metrics
-  app.get("/api/dashboard/metrics", async (req, res) => {
+  app.get("/api/dashboard/metrics", isAuthenticated, async (req: any, res) => {
     try {
-      const metrics = await storage.getUserMetrics(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const metrics = await storage.getUserMetrics(userId);
       res.json(metrics);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch metrics" });
@@ -39,9 +54,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent activity
-  app.get("/api/dashboard/activity", async (req, res) => {
+  app.get("/api/dashboard/activity", isAuthenticated, async (req: any, res) => {
     try {
-      const files = await storage.getDataFilesByUser(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const files = await storage.getDataFilesByUser(userId);
       const recentFiles = files
         .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
         .slice(0, 10)
@@ -59,14 +75,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload file
-  app.post("/api/files/upload", upload.single("file"), async (req, res) => {
+  app.post("/api/files/upload", isAuthenticated, upload.single("file"), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
       }
 
+      const userId = req.user.claims.sub;
       const fileData = insertDataFileSchema.parse({
-        userId: DEFAULT_USER_ID,
+        userId,
         filename: req.file.filename || req.file.originalname,
         originalName: req.file.originalname,
         fileSize: req.file.size,
@@ -88,7 +105,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get file processing status
-  app.get("/api/files/:id/status", async (req, res) => {
+  app.get("/api/files/:id/status", isAuthenticated, async (req, res) => {
     try {
       const file = await storage.getDataFile(req.params.id);
       if (!file) {
@@ -101,9 +118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get data tables
-  app.get("/api/tables", async (req, res) => {
+  app.get("/api/tables", isAuthenticated, async (req: any, res) => {
     try {
-      const tables = await storage.getDataTablesByUser(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const tables = await storage.getDataTablesByUser(userId);
       const tablesWithFileInfo = await Promise.all(
         tables.map(async (table) => {
           const file = await storage.getDataFile(table.fileId);
@@ -121,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get specific table data
-  app.get("/api/tables/:id", async (req, res) => {
+  app.get("/api/tables/:id", isAuthenticated, async (req, res) => {
     try {
       const table = await storage.getDataTable(req.params.id);
       if (!table) {
@@ -134,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export table data
-  app.get("/api/tables/:id/export", async (req, res) => {
+  app.get("/api/tables/:id/export", isAuthenticated, async (req, res) => {
     try {
       const { format = "xlsx" } = req.query;
       const table = await storage.getDataTable(req.params.id);
@@ -158,7 +176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         XLSX.utils.book_append_sheet(wb, ws, "Data");
         
         const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetL.sheet");
         res.setHeader("Content-Disposition", `attachment; filename="${table.name}.xlsx"`);
         res.send(buffer);
       }
@@ -168,11 +186,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate report
-  app.post("/api/reports", async (req, res) => {
+  app.post("/api/reports", isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const reportData = insertReportSchema.parse({
         ...req.body,
-        userId: DEFAULT_USER_ID,
+        userId,
       });
 
       const report = await storage.createReport(reportData);
@@ -186,9 +205,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get reports
-  app.get("/api/reports", async (req, res) => {
+  app.get("/api/reports", isAuthenticated, async (req: any, res) => {
     try {
-      const reports = await storage.getReportsByUser(DEFAULT_USER_ID);
+      const userId = req.user.claims.sub;
+      const reports = await storage.getReportsByUser(userId);
       res.json(reports);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch reports" });

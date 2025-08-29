@@ -1,5 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Home, 
   Upload, 
@@ -7,7 +9,8 @@ import {
   Table, 
   BarChart3, 
   Settings,
-  TrendingUp
+  TrendingUp,
+  LogOut
 } from "lucide-react";
 
 const navigation = [
@@ -21,6 +24,7 @@ const navigation = [
 
 export default function Sidebar() {
   const [location] = useLocation();
+  const { user } = useAuth();
 
   return (
     <aside className="w-64 bg-card border-r border-border flex-shrink-0 sidebar-transition" data-testid="sidebar">
@@ -62,21 +66,41 @@ export default function Sidebar() {
       
       <div className="absolute bottom-4 left-4 right-4">
         <div className="bg-muted rounded-lg p-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold text-sm" data-testid="text-user-initials">
-                DU
-              </span>
-            </div>
+          <div className="flex items-center space-x-3 mb-3">
+            {user?.profileImageUrl ? (
+              <img 
+                src={user.profileImageUrl}
+                alt="Profile"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-primary-foreground font-semibold text-sm" data-testid="text-user-initials">
+                  {user?.firstName?.[0] || user?.email?.[0]?.toUpperCase() || 'U'}
+                </span>
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate" data-testid="text-user-name">
-                Demo User
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName} ${user.lastName}` 
+                  : user?.email?.split('@')[0] || 'User'}
               </p>
               <p className="text-xs text-muted-foreground truncate" data-testid="text-user-email">
-                demo@tallysync.com
+                {user?.email || 'user@example.com'}
               </p>
             </div>
           </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={() => window.location.href = "/api/logout"}
+            data-testid="button-logout"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sign Out
+          </Button>
         </div>
       </div>
     </aside>
