@@ -1,0 +1,615 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TallySync - Excel Data Processing & Reporting Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                    colors: {
+                        background: "var(--background)",
+                        foreground: "var(--foreground)",
+                        card: {
+                            DEFAULT: "var(--card)",
+                            foreground: "var(--card-foreground)",
+                        },
+                        popover: {
+                            DEFAULT: "var(--popover)",
+                            foreground: "var(--popover-foreground)",
+                        },
+                        primary: {
+                            DEFAULT: "var(--primary)",
+                            foreground: "var(--primary-foreground)",
+                        },
+                        secondary: {
+                            DEFAULT: "var(--secondary)",
+                            foreground: "var(--secondary-foreground)",
+                        },
+                        muted: {
+                            DEFAULT: "var(--muted)",
+                            foreground: "var(--muted-foreground)",
+                        },
+                        accent: {
+                            DEFAULT: "var(--accent)",
+                            foreground: "var(--accent-foreground)",
+                        },
+                        destructive: {
+                            DEFAULT: "var(--destructive)",
+                            foreground: "var(--destructive-foreground)",
+                        },
+                        border: "var(--border)",
+                        input: "var(--input)",
+                        ring: "var(--ring)",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "system-ui", "sans-serif"],
+                    }
+                },
+            }
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --background: hsl(0 0% 100%);
+            --foreground: hsl(222.2 84% 4.9%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(222.2 84% 4.9%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(222.2 84% 4.9%);
+            --primary: hsl(142 76% 36%);
+            --primary-foreground: hsl(355.7 100% 97.3%);
+            --secondary: hsl(210 40% 96%);
+            --secondary-foreground: hsl(222.2 84% 4.9%);
+            --muted: hsl(210 40% 96%);
+            --muted-foreground: hsl(215.4 16.3% 46.9%);
+            --accent: hsl(210 40% 96%);
+            --accent-foreground: hsl(222.2 84% 4.9%);
+            --destructive: hsl(0 84.2% 60.2%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(214.3 31.8% 91.4%);
+            --input: hsl(214.3 31.8% 91.4%);
+            --ring: hsl(142 76% 36%);
+            --radius: 0.5rem;
+        }
+        
+        .sidebar-transition {
+            transition: width 0.3s ease-in-out;
+        }
+        
+        .chart-container {
+            height: 300px;
+        }
+        
+        .data-table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .upload-zone {
+            background-image: url("data:image/svg+xml,%3csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3e%3cdefs%3e%3cpattern id='a' patternUnits='userSpaceOnUse' width='20' height='20' patternTransform='scale(2) rotate(0)'%3e%3crect x='0' y='0' width='100%25' height='100%25' fill='hsla(210, 40%25, 96%25, 1)'/%3e%3cpath d='m0 10h20M10 0v20'  stroke-width='1' stroke='hsla(214, 31%25, 91%25, 1)' fill='none'/%3e%3c/pattern%3e%3c/defs%3e%3crect width='100%25' height='100%25' fill='url(%23a)'/%3e%3c/svg%3e");
+        }
+        
+        .metric-card-gradient {
+            background: linear-gradient(135deg, var(--primary) 0%, hsl(142 76% 46%) 100%);
+        }
+        
+        .status-processing {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground font-sans">
+    <!-- @COMPONENT: SidebarNavigation -->
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <aside class="w-64 bg-card border-r border-border flex-shrink-0 sidebar-transition">
+            <div class="p-6 border-b border-border">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-primary-foreground text-sm"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg text-foreground">TallySync</h1>
+                        <p class="text-xs text-muted-foreground">Excel Data Platform</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="p-4 space-y-2">
+                <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-md bg-primary text-primary-foreground" data-event="click:navigateToDashboard">
+                    <i class="fas fa-home w-4"></i>
+                    <span class="font-medium">Dashboard</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-md text-foreground hover:bg-accent hover:text-accent-foreground transition-colors" data-event="click:navigateToUpload">
+                    <i class="fas fa-upload w-4"></i>
+                    <span>Upload Files</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-md text-foreground hover:bg-accent hover:text-accent-foreground transition-colors" data-event="click:navigateToReports">
+                    <i class="fas fa-file-alt w-4"></i>
+                    <span>Reports</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-md text-foreground hover:bg-accent hover:text-accent-foreground transition-colors" data-event="click:navigateToDataTables">
+                    <i class="fas fa-table w-4"></i>
+                    <span>Data Tables</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-md text-foreground hover:bg-accent hover:text-accent-foreground transition-colors" data-event="click:navigateToAnalytics">
+                    <i class="fas fa-chart-bar w-4"></i>
+                    <span>Analytics</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 px-4 py-3 rounded-md text-foreground hover:bg-accent hover:text-accent-foreground transition-colors" data-event="click:navigateToSettings">
+                    <i class="fas fa-cog w-4"></i>
+                    <span>Settings</span>
+                </a>
+            </nav>
+            
+            <div class="absolute bottom-4 left-4 right-4">
+                <div class="bg-muted rounded-lg p-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                            <span class="text-primary-foreground font-semibold text-sm" data-bind="user.initials">JD</span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-medium text-foreground truncate" data-bind="user.name">John Doe</p>
+                            <p class="text-xs text-muted-foreground truncate" data-bind="user.email">john@company.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- @END_COMPONENT: SidebarNavigation -->
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-hidden">
+            <!-- @COMPONENT: Header -->
+            <header class="bg-card border-b border-border px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-foreground">Dashboard</h2>
+                        <p class="text-muted-foreground">Welcome back! Here's your data overview.</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button class="relative p-2 text-muted-foreground hover:text-foreground transition-colors" data-event="click:showNotifications">
+                            <i class="fas fa-bell"></i>
+                            <span class="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">3</span>
+                        </button>
+                        <button class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors" data-event="click:uploadNewFile">
+                            <i class="fas fa-plus mr-2"></i>
+                            New Upload
+                        </button>
+                    </div>
+                </div>
+            </header>
+            <!-- @END_COMPONENT: Header -->
+
+            <!-- @COMPONENT: DashboardContent -->
+            <div class="p-6 overflow-y-auto h-full">
+                <!-- Metrics Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-muted-foreground text-sm font-medium">Total Files Processed</p>
+                                <p class="text-3xl font-bold text-foreground" data-bind="metrics.totalFiles">1,247</p>
+                            </div>
+                            <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-file-excel text-primary text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm">
+                            <span class="text-primary font-medium">+12%</span>
+                            <span class="text-muted-foreground ml-2">from last month</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-muted-foreground text-sm font-medium">Data Records</p>
+                                <p class="text-3xl font-bold text-foreground" data-bind="metrics.totalRecords">89.2K</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-database text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm">
+                            <span class="text-primary font-medium">+8.5%</span>
+                            <span class="text-muted-foreground ml-2">from last month</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-muted-foreground text-sm font-medium">Reports Generated</p>
+                                <p class="text-3xl font-bold text-foreground" data-bind="metrics.reportsGenerated">456</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-pie text-orange-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm">
+                            <span class="text-primary font-medium">+23%</span>
+                            <span class="text-muted-foreground ml-2">from last month</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-muted-foreground text-sm font-medium">Processing Time</p>
+                                <p class="text-3xl font-bold text-foreground" data-bind="metrics.avgProcessingTime">2.3s</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-clock text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center text-sm">
+                            <span class="text-primary font-medium">-15%</span>
+                            <span class="text-muted-foreground ml-2">improvement</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- File Upload Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <!-- Upload Zone -->
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-foreground mb-4">Quick Upload</h3>
+                        <div class="border-2 border-dashed border-border rounded-lg p-8 text-center upload-zone hover:border-primary/50 transition-colors cursor-pointer" data-implementation="Implement drag-and-drop file upload with FileUpload component">
+                            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-cloud-upload-alt text-primary text-2xl"></i>
+                            </div>
+                            <h4 class="text-lg font-medium text-foreground mb-2">Drop your Excel files here</h4>
+                            <p class="text-muted-foreground mb-4">or click to browse</p>
+                            <button class="bg-primary text-primary-foreground px-4 py-2 rounded-md font-medium hover:bg-primary/90 transition-colors" data-event="click:openFileDialog">
+                                Choose Files
+                            </button>
+                            <p class="text-xs text-muted-foreground mt-3">Supports: .xlsx, .xls, .csv (Max 10MB)</p>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity -->
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-foreground mb-4">Recent Activity</h3>
+                        <div class="space-y-4">
+                            <!-- @MAP: recentActivity.map(activity => ( -->
+                            <div class="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+                                <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-file-excel text-primary-foreground"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-foreground truncate" data-bind="activity.filename">sales_data_q4.xlsx</p>
+                                    <p class="text-xs text-muted-foreground" data-bind="activity.status">Processed successfully</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-muted-foreground" data-bind="activity.timestamp">2 minutes ago</p>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                        Complete
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+                                <div class="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-spinner fa-spin text-white"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-foreground truncate">inventory_report.xlsx</p>
+                                    <p class="text-xs text-muted-foreground">Processing data...</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-muted-foreground">5 minutes ago</p>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 status-processing">
+                                        Processing
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-4 p-3 bg-muted/50 rounded-lg">
+                                <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-chart-bar text-primary-foreground"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-foreground truncate">financial_summary.xlsx</p>
+                                    <p class="text-xs text-muted-foreground">Report generated</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs text-muted-foreground">1 hour ago</p>
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                        Complete
+                                    </span>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Overview -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Chart -->
+                    <div class="lg:col-span-2 bg-card border border-border rounded-lg p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h3 class="text-lg font-semibold text-foreground">Processing Volume</h3>
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md">7D</button>
+                                <button class="px-3 py-1 text-sm text-muted-foreground hover:text-foreground">30D</button>
+                                <button class="px-3 py-1 text-sm text-muted-foreground hover:text-foreground">90D</button>
+                            </div>
+                        </div>
+                        <!-- @FUNCTIONALITY: Implement chart using Chart.js or similar library -->
+                        <div class="chart-container bg-muted/20 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <i class="fas fa-chart-line text-4xl text-muted-foreground mb-4"></i>
+                                <p class="text-muted-foreground">Chart visualization will be rendered here</p>
+                                <p class="text-xs text-muted-foreground mt-2">Using Chart.js or similar charting library</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="bg-card border border-border rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-foreground mb-6">Quick Stats</h3>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm text-muted-foreground">Success Rate</span>
+                                    <span class="text-sm font-medium text-foreground">98.5%</span>
+                                </div>
+                                <div class="w-full bg-muted rounded-full h-2">
+                                    <div class="bg-primary h-2 rounded-full" style="width: 98.5%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm text-muted-foreground">Error Rate</span>
+                                    <span class="text-sm font-medium text-foreground">1.5%</span>
+                                </div>
+                                <div class="w-full bg-muted rounded-full h-2">
+                                    <div class="bg-destructive h-2 rounded-full" style="width: 1.5%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm text-muted-foreground">Data Quality</span>
+                                    <span class="text-sm font-medium text-foreground">96.2%</span>
+                                </div>
+                                <div class="w-full bg-muted rounded-full h-2">
+                                    <div class="bg-primary h-2 rounded-full" style="width: 96.2%"></div>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-border">
+                                <h4 class="text-sm font-medium text-foreground mb-3">File Types Processed</h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-muted-foreground">Excel (.xlsx)</span>
+                                        <span class="font-medium text-foreground">78%</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-muted-foreground">CSV</span>
+                                        <span class="font-medium text-foreground">18%</span>
+                                    </div>
+                                    <div class="flex justify-between text-sm">
+                                        <span class="text-muted-foreground">Legacy (.xls)</span>
+                                        <span class="font-medium text-foreground">4%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Table Preview -->
+                <div class="bg-card border border-border rounded-lg p-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-lg font-semibold text-foreground">Recent Data Tables</h3>
+                        <div class="flex items-center space-x-4">
+                            <div class="relative">
+                                <input type="text" placeholder="Search tables..." class="bg-background border border-input rounded-md px-4 py-2 text-sm pl-10 w-64" data-implementation="Implement table search functionality">
+                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"></i>
+                            </div>
+                            <button class="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors" data-event="click:viewAllTables">
+                                View All
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="w-full">
+                            <thead class="bg-muted/50 sticky top-0">
+                                <tr>
+                                    <th class="text-left py-3 px-4 font-medium text-foreground text-sm">
+                                        <button class="flex items-center space-x-1 hover:text-primary" data-event="click:sortByName">
+                                            <span>Table Name</span>
+                                            <i class="fas fa-sort text-xs"></i>
+                                        </button>
+                                    </th>
+                                    <th class="text-left py-3 px-4 font-medium text-foreground text-sm">
+                                        <button class="flex items-center space-x-1 hover:text-primary" data-event="click:sortByRecords">
+                                            <span>Records</span>
+                                            <i class="fas fa-sort text-xs"></i>
+                                        </button>
+                                    </th>
+                                    <th class="text-left py-3 px-4 font-medium text-foreground text-sm">
+                                        <button class="flex items-center space-x-1 hover:text-primary" data-event="click:sortByDate">
+                                            <span>Last Updated</span>
+                                            <i class="fas fa-sort text-xs"></i>
+                                        </button>
+                                    </th>
+                                    <th class="text-left py-3 px-4 font-medium text-foreground text-sm">Status</th>
+                                    <th class="text-right py-3 px-4 font-medium text-foreground text-sm">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border">
+                                <!-- @MAP: dataTables.map(table => ( -->
+                                <tr class="hover:bg-muted/20 transition-colors" data-mock="true">
+                                    <td class="py-3 px-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-table text-primary text-xs"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-foreground text-sm" data-bind="table.name">Sales Report Q4</p>
+                                                <p class="text-xs text-muted-foreground" data-bind="table.description">Monthly sales data aggregation</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-foreground" data-bind="table.recordCount">12,456</td>
+                                    <td class="py-3 px-4 text-sm text-muted-foreground" data-bind="table.lastUpdated">2 hours ago</td>
+                                    <td class="py-3 px-4">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                            Active
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-right">
+                                        <div class="flex items-center justify-end space-x-2">
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" data-event="click:viewTable" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" data-event="click:downloadTable" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" data-event="click:shareTable" title="Share">
+                                                <i class="fas fa-share"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-muted/20 transition-colors" data-mock="true">
+                                    <td class="py-3 px-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-table text-blue-600 text-xs"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-foreground text-sm">Inventory Tracking</p>
+                                                <p class="text-xs text-muted-foreground">Product stock levels and movement</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-foreground">8,932</td>
+                                    <td class="py-3 px-4 text-sm text-muted-foreground">5 hours ago</td>
+                                    <td class="py-3 px-4">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            Processing
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-right">
+                                        <div class="flex items-center justify-end space-x-2">
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" title="Share">
+                                                <i class="fas fa-share"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-muted/20 transition-colors" data-mock="true">
+                                    <td class="py-3 px-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-table text-green-600 text-xs"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-foreground text-sm">Customer Analytics</p>
+                                                <p class="text-xs text-muted-foreground">Customer behavior and demographics</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-3 px-4 text-sm text-foreground">25,678</td>
+                                    <td class="py-3 px-4 text-sm text-muted-foreground">1 day ago</td>
+                                    <td class="py-3 px-4">
+                                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                            Active
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-right">
+                                        <div class="flex items-center justify-end space-x-2">
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" title="View">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" title="Download">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="p-1 text-muted-foreground hover:text-foreground transition-colors" title="Share">
+                                                <i class="fas fa-share"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- @END_MAP )) -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: DashboardContent -->
+        </main>
+    </div>
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        (function() {
+            // Simulated interactivity for demonstration
+            const uploadZone = document.querySelector('.upload-zone');
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.multiple = true;
+            fileInput.accept = '.xlsx,.xls,.csv';
+            fileInput.style.display = 'none';
+            document.body.appendChild(fileInput);
+
+            uploadZone.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('border-primary');
+            });
+
+            uploadZone.addEventListener('dragleave', () => {
+                uploadZone.classList.remove('border-primary');
+            });
+
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('border-primary');
+                // TODO: Handle file drop functionality
+                console.log('Files dropped:', e.dataTransfer.files);
+            });
+
+            // Simulated real-time updates
+            setInterval(() => {
+                const processingElements = document.querySelectorAll('.status-processing');
+                processingElements.forEach(el => {
+                    if (Math.random() > 0.7) {
+                        el.textContent = 'Complete';
+                        el.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary';
+                    }
+                });
+            }, 3000);
+        })();
+    </script>
+</body>
+</html>
